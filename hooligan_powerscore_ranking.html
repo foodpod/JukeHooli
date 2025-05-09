@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hooligan PowerScore Ranking</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #222; color: #eee; text-align: center; padding: 40px; }
+    .container { background: #333; border-radius: 10px; padding: 30px; display: inline-block; }
+    input[type="file"] { margin-bottom: 15px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #555; padding: 8px; }
+    th { background: #444; cursor: pointer; }
+    tr:nth-child(even) { background: #2a2a2a; }
+    tr:hover { background: #444; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hooligan PowerScore Ranking</h1>
+    <input type="file" id="fileInput" accept=".txt" />
+    <div id="fileStatus"></div>
+    <div id="tableContainer"></div>
+  </div>
+  <script>
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const lines = event.target.result.split('\n');
+        let hooligans = [];
+        let factionCounts = {};
+        let weaponCounts = {};
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('Hooligan#')) continue;
+          const firstComma = line.indexOf(',');
+          if (firstComma === -1) continue;
+          const numPart = line.slice(0, firstComma).replace('Hooligan#', '').trim();
+          let jsonPart = line.slice(firstComma + 1).trim();
+          if (jsonPart.startsWith('"') && jsonPart.endsWith('"')) {
+            jsonPart = jsonPart.slice(1, -1);
+          }
+          jsonPart = jsonPart.replace(/""/g, '"');
+          try {
+            const data = JSON.parse(jsonPart);
+            const attributes = data.attributes || [];
+            const faction = attributes.find(a => a.trait_type === 'Faction')?.value || '';
+            const weapon = attributes.find(a => a.trait_type === 'Item')?.value || '';
+            hooligans.push({
+              number: parseInt(numPart),
+              name: data.name,
+              faction,
+              weapon,
+              image: data.image
+            });
+            if (faction) factionCounts[faction] = (factionCounts[faction] || 0) + 1;
+            if (weapon) weaponCounts[weapon] = (weaponCounts[weapon] || 0) + 1;
+          } catch (e) {
+            // Ignore parse errors for now
+          }
+        }
+        document.getElementById('fileStatus').innerText = `Loaded ${hooligans.length} hooligans!`;
+
+        // Assign rarity ranks: 0 = most common, higher = rarer
+        let factionRarityRank = {};
+        Object.entries(factionCounts)
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([faction, _], idx) => { factionRarityRank[faction] = idx; });
+
+        let weaponRarityRank = {};
+        Object.entries(weaponCounts)
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([weapon, _], idx) => { weaponRarityRank[weapon] = idx; });
+
+        // Calculate PowerScore for each hooligan
+        hooligans.forEach(h => {
+          const fRank = factionRarityRank[h.faction] ?? 0;
+          const wRank = weaponRarityRank[h.weapon] ?? 0;
+          h.factionRank = fRank;
+          h.weaponRank = wRank;
+          h.powerScore = (fRank * 987) + (wRank * 987); // boost is 0
+        });
+
+        // Sort by PowerScore descending
+        hooligans.sort((a, b) => b.powerScore - a.powerScore);
+
+        // Build table
+        let html = '<table><thead><tr>' +
+          '<th>#</th><th>Name</th><th>Faction</th><th>Faction Rank</th>' +
+          '<th>Weapon</th><th>Weapon Rank</th><th>PowerScore</th></tr></thead><tbody>';
+        hooligans.forEach(h => {
+          html += `<tr>
+            <td>${h.number}</td>
+            <td>${h.name}</td>
+            <td>${h.faction}</td>
+            <td>${h.factionRank}</td>
+            <td>${h.weapon}</td>
+            <td>${h.weaponRank}</td>
+            <td>${h.powerScore}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('tableContainer').innerHTML = html;
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html> 

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Video Player with Alpha</title>
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    .background {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 80vw;
+      height: 80vh;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+      animation: bg-move 8s ease-in-out infinite alternate;
+    }
+    @keyframes bg-move {
+      0% {
+        transform: translate(-50%, -50%) translateX(-5vw);
+      }
+      100% {
+        transform: translate(-50%, -50%) translateX(5vw);
+      }
+    }
+    .video-player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      z-index: 1;
+      pointer-events: none;
+      padding-right: 5vw;
+    }
+    video {
+      max-width: 80vw;
+      max-height: 80vh;
+      background: transparent;
+      pointer-events: auto;
+      /* Ensure alpha channel is respected */
+      mix-blend-mode: normal;
+    }
+    .controls {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+    }
+    button {
+      font-size: 1.5em;
+      padding: 0.5em 1.5em;
+      border-radius: 8px;
+      border: none;
+      background: #0078d7;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    .crossfade-video {
+      transition: opacity 0.08s linear;
+      position: absolute;
+      left: 0;
+      top: 0;
+      max-width: 40vw;
+      max-height: 40vh;
+      background: transparent;
+      pointer-events: auto;
+      mix-blend-mode: normal;
+    }
+  </style>
+</head>
+<body>
+  <img class="background" src="JukeGraphic2.png" alt="Background">
+  <div class="video-player">
+    <video id="videoA" class="crossfade-video" autoplay style="opacity:1; z-index:2;"></video>
+    <video id="videoB" class="crossfade-video" autoplay style="opacity:0; z-index:1; position:absolute; left:0; top:0;"></video>
+  </div>
+  <div class="controls">
+    <button onclick="playRandomVideo()">Play Random Video</button>
+    <button onclick="onPlayerMoveChange()">Simulate Player Move Change</button>
+    <!-- Demo buttons for integration -->
+    <button onclick="onHitJuke()">Hit Juke</button>
+    <button onclick="onHooli()">Hooli</button>
+    <button onclick="onWin()">Win</button>
+    <button onclick="onLose()">Lose</button>
+    <button onclick="onTie()">Tie</button>
+  </div>
+  <script>
+    // List of all .webm files in the folder
+    const videos = [
+      'jukeBob_PreferSoups_multi.webm',
+      'jukeBob_PirateMemory_multi.webm',
+      'jukeBob_LookingForTreasure_greeting.webm',
+      'jukeBob_LetThePirateCharm_greeting.webm',
+      'jukeBob_LandLubber_greeting.webm',
+      'jukeBob_BewareCelery_multi.webm',
+      'jukeBob_BeardSecrets_multi.webm',
+      'jukeBob_WindsTake_greeting.webm',
+      'jukeBob_WhispersNonsense_multi.webm',
+      'jukeBob_TrustMirrors_multi.webm',
+      'jukeBob_TisI_greeting.webm',
+      'jukeBob_SmellsCursed_multi.webm',
+      'jukeBob_TalkingTangled_multi.webm',
+      'jukeBob_PickleCrumbs_multi.webm',
+      'jukeBob_AhoyThere_greeting.webm'
+    ];
+    const videoA = document.getElementById('videoA');
+    const videoB = document.getElementById('videoB');
+    let playQueue = [];
+    let isPlayingQueue = false;
+    let stopQueue = false;
+    let currentVideo = videoA;
+    let nextVideo = videoB;
+
+    function getRandomUnique(arr, n) {
+      // Shuffle and take n unique items
+      const shuffled = arr.slice().sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, n);
+    }
+
+    function playRandomQueue() {
+      stopQueue = true;
+      setTimeout(() => {
+        stopQueue = false;
+        // Pick 2 unique random videos
+        playQueue = getRandomUnique(videos, 2);
+        isPlayingQueue = true;
+        playNextInQueue(true);
+      }, 100);
+    }
+
+    function playNextInQueue(isFirst = false) {
+      if (stopQueue) {
+        isPlayingQueue = false;
+        return;
+      }
+      if (playQueue.length === 0) {
+        isPlayingQueue = false;
+        return;
+      }
+      const nextSrc = playQueue.shift();
+      // Swap current and next video elements
+      [currentVideo, nextVideo] = [nextVideo, currentVideo];
+      nextVideo.src = nextSrc;
+      nextVideo.currentTime = 0;
+      nextVideo.style.opacity = 0;
+      nextVideo.pause();
+      // When the new video is ready, crossfade
+      nextVideo.oncanplay = () => {
+        nextVideo.oncanplay = null;
+        nextVideo.play();
+        // Crossfade (faster)
+        nextVideo.style.transition = 'opacity 0.15s linear';
+        currentVideo.style.transition = 'opacity 0.15s linear';
+        nextVideo.style.opacity = 1;
+        currentVideo.style.opacity = 0;
+      };
+      // If this is the first video, show immediately
+      if (isFirst) {
+        nextVideo.oncanplay = null;
+        nextVideo.style.opacity = 1;
+        currentVideo.style.opacity = 0;
+        nextVideo.play();
+      }
+    }
+
+    // Listen for end on both videos
+    videoA.addEventListener('ended', function() {
+      if (isPlayingQueue && playQueue.length > 0 && !stopQueue) {
+        playNextInQueue();
+      } else {
+        isPlayingQueue = false;
+      }
+    });
+    videoB.addEventListener('ended', function() {
+      if (isPlayingQueue && playQueue.length > 0 && !stopQueue) {
+        playNextInQueue();
+      } else {
+        isPlayingQueue = false;
+      }
+    });
+
+    // Play a random queue on page load
+    window.onload = playRandomQueue;
+
+    // Button triggers a new random queue
+    function playRandomVideo() {
+      playRandomQueue();
+    }
+
+    // --- Integration demo functions ---
+    function onHitJuke() {
+      playRandomWebmOnChoice();
+    }
+    function onHooli() {
+      playRandomWebmOnChoice();
+    }
+    function onWin() {
+      playRandomWebm();
+    }
+    function onLose() {
+      playRandomWebm();
+    }
+    function onTie() {
+      playRandomWebm();
+    }
+
+    // --- Main random webm playback function ---
+    function playRandomWebm() {
+      stopQueue = true;
+      setTimeout(() => {
+        stopQueue = false;
+        playQueue = [getRandomUnique(videos, 1)[0]];
+        isPlayingQueue = true;
+        playNextInQueue(true);
+      }, 100);
+    }
+
+    // Play a single random video with smooth blend
+    function playRandomWebmOnChoice() {
+      stopQueue = true;
+      setTimeout(() => {
+        stopQueue = false;
+        playQueue = [getRandomUnique(videos, 1)[0]];
+        isPlayingQueue = true;
+        playNextInQueue(true);
+      }, 100);
+    }
+
+    // Example: Simulate player move button change
+    function onPlayerMoveChange() {
+      playRandomWebmOnChoice();
+    }
+  </script>
+</body>
+</html> 

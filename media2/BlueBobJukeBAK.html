@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Video Player with Alpha</title>
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    .background {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 50vw;
+      height: 50vh;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+    }
+    .video-player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      pointer-events: none;
+    }
+    video {
+      max-width: 80vw;
+      max-height: 80vh;
+      background: transparent;
+      pointer-events: auto;
+      /* Ensure alpha channel is respected */
+      mix-blend-mode: normal;
+    }
+    .controls {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+    }
+    button {
+      font-size: 1.5em;
+      padding: 0.5em 1.5em;
+      border-radius: 8px;
+      border: none;
+      background: #0078d7;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+  </style>
+</head>
+<body>
+  <img class="background" src="JukeGraphic2.png" alt="Background">
+  <div class="video-player">
+    <video id="randomVideo" controls autoplay></video>
+  </div>
+  <div class="controls">
+    <button onclick="playRandomVideo()">Play Random Video</button>
+  </div>
+  <script>
+    const videos = [
+      'jukeBob_TalkingTangled_multi.webm',
+      'jukeBob_PickleCrumbs_multi.webm',
+      'jukeBob_AhoyThere_greeting.webm'
+    ];
+    const videoElement = document.getElementById('randomVideo');
+    let playQueue = [];
+    let isPlayingQueue = false;
+    let stopQueue = false;
+
+    function getRandomVideo() {
+      return videos[Math.floor(Math.random() * videos.length)];
+    }
+
+    function playRandomQueue() {
+      // Stop any current queue
+      stopQueue = true;
+      setTimeout(() => {
+        stopQueue = false;
+        playQueue = [getRandomVideo(), getRandomVideo(), getRandomVideo()];
+        isPlayingQueue = true;
+        playNextInQueue();
+      }, 100); // Small delay to allow any current play to stop
+    }
+
+    function playNextInQueue() {
+      if (stopQueue) {
+        isPlayingQueue = false;
+        return;
+      }
+      if (playQueue.length === 0) {
+        isPlayingQueue = false;
+        return;
+      }
+      const nextVideo = playQueue.shift();
+      videoElement.src = nextVideo;
+      videoElement.play();
+    }
+
+    videoElement.addEventListener('ended', function() {
+      if (isPlayingQueue && playQueue.length > 0 && !stopQueue) {
+        playNextInQueue();
+      } else {
+        isPlayingQueue = false;
+      }
+    });
+
+    // Play a random queue on page load
+    window.onload = playRandomQueue;
+
+    // Button triggers a new random queue
+    function playRandomVideo() {
+      playRandomQueue();
+    }
+  </script>
+</body>
+</html> 
