@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hooligan RPS PowerScore Game</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #222; color: #eee; text-align: center; padding: 40px; }
+    .container { background: #333; border-radius: 10px; padding: 30px; display: inline-block; }
+    input[type="number"] { padding: 8px; font-size: 1em; margin: 10px; border-radius: 5px; border: none; }
+    input[type="file"] { margin-bottom: 15px; }
+    select { padding: 8px; font-size: 1em; margin: 10px; border-radius: 5px; border: none; }
+    button { padding: 10px 30px; font-size: 1.1em; border-radius: 5px; border: none; background: #4caf50; color: #fff; cursor: pointer; }
+    button:hover { background: #388e3c; }
+    .result { margin-top: 30px; font-size: 1.2em; }
+    .hooligan-info { margin: 10px 0; }
+    #fileStatus { margin-bottom: 15px; color: #8f8; }
+  </style>
+</head>
+<body>
+  <div style="position: relative; width: 100%; min-height: 120px;">
+    <img src="media/simpleJukeLogo.webp" alt="Juke Logo" style="position: absolute; top: 10px; left: 10px; max-width: 260px; max-height: 140px;">
+    <div style="text-align: center;">
+      <img src="media/JukeGraphic2.png" alt="Juke Graphic" style="max-width: 700px; max-height: 320px; margin: 0 auto; display: inline-block;">
+    </div>
+  </div>
+  <div style="margin: 10px auto 24px auto; max-width: 540px; background: #222; color: #ffe066; border-radius: 8px; padding: 16px; font-size: 1.1em;">
+    <b>Hit Juke Hooli Rules:</b><br>
+    <div style="margin: 8px 0 8px 0; color:#fff;">
+      Hit &rarr; Juke &rarr; Hooli
+    </div>
+    <ul style="text-align:left; margin: 10px 0 0 30px;">
+      <li><b>Hit</b> beats <b>Juke</b></li>
+      <li><b>Juke</b> beats <b>Hooli</b></li>
+      <li><b>Hooli</b> beats <b>Hit</b></li>
+      <li>If both choose the same, it's a tie!</li>
+    </ul>
+    <span style="color:#fff;">Each round winner gets +987 PowerScore boost.</span>
+  </div> 
+	<h1>Hit Juke and Hooli PowerScore Game</h1>
+
+    <!-- ✅ FIX: uncommented file input -->
+    <input type="file" id="fileInput" accept=".txt" />
+
+    <div id="fileStatus">Loading hooli_meta_data.txt...</div>
+    <div>
+      <input id="hooligan1" type="number" min="0" max="8887" placeholder="Enter Hooligan #1" />
+      <select id="rps1a">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+      <select id="rps1b">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+      <br>
+      <input id="hooligan2" type="number" min="0" max="8887" placeholder="Enter Hooligan #2" />
+      <select id="rps2a">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+      <select id="rps2b">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+    </div>
+    <button onclick="battle()">GO</button>
+    <div class="result" id="result"></div>
+
+  <script>
+    // Auto-fetch support
+    window.addEventListener('DOMContentLoaded', function () {
+      const fileStatus = document.getElementById('fileStatus');
+      fetch('hooli_meta_data.txt')
+        .then(response => {
+          if (!response.ok) throw new Error('File not found or inaccessible');
+          return response.text();
+        })
+        .then(text => {
+          const fileInput = document.getElementById('fileInput');
+          const file = new Blob([text], { type: 'text/plain' });
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(new File([file], "hooli_meta_data.txt"));
+          fileInput.files = dataTransfer.files;
+
+          const event = new Event('change');
+          fileInput.dispatchEvent(event);
+
+          fileStatus.textContent = "Auto-loaded hooli_meta_data.txt!";
+        })
+        .catch(err => {
+          console.error('Auto-load failed:', err);
+          fileStatus.textContent = "Could not auto-load data. Please upload manually.";
+        });
+    });
+  </script>
+</body>
+</html>
