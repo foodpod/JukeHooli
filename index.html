@@ -363,3 +363,32 @@
   </script>
 </body>
 </html>
+<!-- KEEP EVERYTHING ABOVE THIS EXACTLY AS YOU HAVE IT -->
+
+<script>
+  // ... your existing code ...
+
+  window.addEventListener('DOMContentLoaded', function () {
+    setupUpperVideoTriggers();
+
+    // ✅ Auto-fetch hooli_meta_data.txt on page load
+    fetch('hooli_meta_data.txt')
+      .then(response => {
+        if (!response.ok) throw new Error('Fetch failed');
+        return response.text();
+      })
+      .then(text => {
+        const lines = text.split('\n');
+        hooligans = {};
+        let factionCounts = {};
+        let weaponCounts = {};
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('Hooligan#')) continue;
+          const firstComma = line.indexOf(',');
+          if (firstComma === -1) continue;
+          const numPart = line.slice(0, firstComma).replace('Hooligan#', '').trim();
+          let jsonPart = line.slice(firstComma + 1).trim();
+          if (jsonPart.startsWith('"') && jsonPart.endsWith('"')) {
+            jsonPart = jsonPart.slice(1, -1);
+          }
+          jsonPart
