@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hooligan RPS PowerScore Game</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #222; color: #eee; text-align: center; padding: 40px; }
+    .container { background: #333; border-radius: 10px; padding: 30px; display: inline-block; }
+    input[type="number"] { padding: 8px; font-size: 1em; margin: 10px; border-radius: 5px; border: none; }
+    input[type="file"] { margin-bottom: 15px; }
+    select { padding: 8px; font-size: 1em; margin: 10px; border-radius: 5px; border: none; }
+    button { padding: 10px 30px; font-size: 1.1em; border-radius: 5px; border: none; background: #4caf50; color: #fff; cursor: pointer; }
+    button:hover { background: #388e3c; }
+    .result { margin-top: 30px; font-size: 1.2em; }
+    .hooligan-info { margin: 10px 0; }
+    #fileStatus { margin-bottom: 15px; color: #8f8; }
+  </style>
+</head>
+<body>
+  <div style="position: relative; width: 100%; min-height: 120px;">
+    <img src="media/simpleJukeLogo.webp" alt="Juke Logo" style="position: absolute; top: 10px; left: 10px; max-width: 260px; max-height: 140px;">
+    <div style="text-align: center;">
+      <img src="media/JukeGraphic2.png" alt="Juke Graphic" style="max-width: 700px; max-height: 320px; margin: 0 auto; display: inline-block;">
+    </div>
+  </div>
+  <div style="margin: 10px auto 24px auto; max-width: 540px; background: #222; color: #ffe066; border-radius: 8px; padding: 16px; font-size: 1.1em;">
+    <b>Hit Juke Hooli Rules:</b><br>
+    <div style="margin: 8px 0 8px 0; color:#fff;">
+      Hit &rarr; Juke &rarr; Hooli
+    </div>
+    <ul style="text-align:left; margin: 10px 0 0 30px;">
+      <li><b>Hit</b> beats <b>Juke</b></li>
+      <li><b>Juke</b> beats <b>Hooli</b></li>
+      <li><b>Hooli</b> beats <b>Hit</b></li>
+      <li>If both choose the same, it's a tie!</li>
+    </ul>
+    <span style="color:#fff;">Each round winner gets +987 PowerScore boost.</span>
+  </div> 
+	<h1>Hit Juke and Hooli PowerScore Game</h1>
+    <input type="file" id="fileInput" accept=".txt" />
+    <div id="fileStatus"></div>
+    <div>
+      <input id="hooligan1" type="number" min="0" max="8887" placeholder="Enter Hooligan #1" />
+      <select id="rps1a">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+      <select id="rps1b">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+      <br>
+      <input id="hooligan2" type="number" min="0" max="8887" placeholder="Enter Hooligan #2" />
+      <select id="rps2a">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+      <select id="rps2b">
+        <option value="hit">Hit</option>
+        <option value="juke">Juke</option>
+        <option value="hooli">Hooli</option>
+      </select>
+    </div>
+    <button onclick="battle()">GO</button>
+    <div class="result" id="result"></div>
+  </div>
+  <audio id="winSound1" src="media/hardHitWhip.mp3" preload="auto"></audio>
+  <audio id="loseSound1" src="media/sproing.mp3" preload="auto"></audio>
+  <audio id="tieSound" src="media/squishOpen.mp3" preload="auto"></audio>
+  <audio id="fileLoadedSound" src="media/click_organic.mp3" preload="auto"></audio>
+  <video id="blueBobWebmPlayer" style="position:fixed; bottom:30px; right:30px; width:320px; height:auto; opacity:0; pointer-events:none; z-index:1000; transition:opacity 0.15s linear; background:transparent;" playsinline></video>
+  <video id="upperFileLoadVideo" style="display:none; position:fixed; top:40px; left:10vw; width:320px; height:200px; z-index:1001; background:transparent; transition:opacity 0.15s linear; opacity:1;" playsinline></video>
+  <script>
+    let hooligans = {};
+    let factionRarityRank = {};
+    let weaponRarityRank = {};
+    let pendingSound = null;
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const lines = event.target.result.split('\n');
+        hooligans = {};
+        let factionCounts = {};
+        let weaponCounts = {};
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('Hooligan#')) continue;
+          const firstComma = line.indexOf(',');
+          if (firstComma === -1) continue;
+          const numPart = line.slice(0, firstComma).replace('Hooligan#', '').trim();
+          let jsonPart = line.slice(firstComma + 1).trim();
+          if (jsonPart.startsWith('"') && jsonPart.endsWith('"')) {
+            jsonPart = jsonPart.slice(1, -1);
+          }
+          jsonPart = jsonPart.replace(/""/g, '"');
+          try {
+            const data = JSON.parse(jsonPart);
+            const attributes = data.attributes || [];
+            const faction = attributes.find(a => a.trait_type === 'Faction')?.value || '';
+            const weapon = attributes.find(a => a.trait_type === 'Item')?.value || '';
+            hooligans[parseInt(numPart)] = {
+              number: parseInt(numPart),
+              name: data.name,
+              faction,
+              weapon,
+              image: data.image
+            };
+            if (faction) factionCounts[faction] = (factionCounts[faction] || 0) + 1;
+            if (weapon) weaponCounts[weapon] = (weaponCounts[weapon] || 0) + 1;
+          } catch (e) {
+            // Ignore parse errors for now
+          }
+        }
+        document.getElementById('fileStatus').innerText = `Loaded ${Object.keys(hooligans).length} hooligans!`;
+        document.getElementById('fileLoadedSound').currentTime = 0;
+        document.getElementById('fileLoadedSound').play();
+
+        // Assign rarity ranks: 0 = most common, higher = rarer
+        factionRarityRank = {};
+        Object.entries(factionCounts)
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([faction, _], idx) => { factionRarityRank[faction] = idx; });
+
+        weaponRarityRank = {};
+        Object.entries(weaponCounts)
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([weapon, _], idx) => { weaponRarityRank[weapon] = idx; });
+
+        // Play upper video after file load (with sound, stays visible)
+        playUpperFileLoadVideo();
+      };
+      reader.readAsText(file);
+    });
+
+    function rpsWinner(choice1, choice2) {
+      if (choice1 === choice2) return 0; // tie
+      if (
+        (choice1 === 'hit' && choice2 === 'juke') ||
+        (choice1 === 'juke' && choice2 === 'hooli') ||
+        (choice1 === 'hooli' && choice2 === 'hit')
+      ) return 1; // player 1 wins
+      return 2; // player 2 wins
+    }
+
+    // List of all BlueBobCursor/media .webm files
+    const blueBobWebms = [
+      'media2/jukeBob_PreferSoups_multi.webm',
+      'media2/jukeBob_PirateMemory_multi.webm',
+      'media2/jukeBob_LookingForTreasure_greeting.webm',
+      'media2/jukeBob_LetThePirateCharm_greeting.webm',
+      'media2/jukeBob_LandLubber_greeting.webm',
+      'media2/jukeBob_BewareCelery_multi.webm',
+      'media2/jukeBob_BeardSecrets_multi.webm',
+      'media2/jukeBob_WindsTake_greeting.webm',
+      'media2/jukeBob_WhispersNonsense_multi.webm',
+      'media2/jukeBob_TrustMirrors_multi.webm',
+      'media2/jukeBob_TisI_greeting.webm',
+      'media2/jukeBob_SmellsCursed_multi.webm',
+      'media2/jukeBob_TalkingTangled_multi.webm',
+      'media2/jukeBob_PickleCrumbs_multi.webm',
+      'media2/jukeBob_AhoyThere_greeting.webm'
+    ];
+
+    function playRandomBlueBobWebm() {
+      const video = document.getElementById('blueBobWebmPlayer');
+      const randomSrc = blueBobWebms[Math.floor(Math.random() * blueBobWebms.length)];
+      video.style.transition = 'opacity 0.15s linear';
+      video.style.opacity = 0;
+      video.src = randomSrc;
+      video.load();
+      video.oncanplay = () => {
+        video.oncanplay = null;
+        video.play();
+        video.style.opacity = 1;
+      };
+      video.onended = () => {
+        video.style.opacity = 0;
+        setTimeout(() => {
+          if (pendingSound === 'win') {
+            document.getElementById('winSound1').currentTime = 0;
+            document.getElementById('winSound1').play();
+          } else if (pendingSound === 'lose') {
+            document.getElementById('loseSound1').currentTime = 0;
+            document.getElementById('loseSound1').play();
+          } else if (pendingSound === 'tie') {
+            document.getElementById('tieSound').currentTime = 0;
+            document.getElementById('tieSound').play();
+          }
+          pendingSound = null;
+        }, 150);
+      };
+    }
+
+    function battle() {
+      const num1 = parseInt(document.getElementById('hooligan1').value);
+      const num2 = parseInt(document.getElementById('hooligan2').value);
+      const rps1a = document.getElementById('rps1a').value;
+      const rps1b = document.getElementById('rps1b').value;
+      const rps2a = document.getElementById('rps2a').value;
+      const rps2b = document.getElementById('rps2b').value;
+      const h1 = hooligans[num1];
+      const h2 = hooligans[num2];
+      const resultDiv = document.getElementById('result');
+      if (!h1 || !h2) {
+        resultDiv.innerHTML = '<span style="color: #f55">Both hooligan numbers must be valid and loaded from your file.</span>';
+        return;
+      }
+
+      // Calculate PowerScore for each
+      const fRank1 = factionRarityRank[h1.faction] ?? 0;
+      const wRank1 = weaponRarityRank[h1.weapon] ?? 0;
+      const fRank2 = factionRarityRank[h2.faction] ?? 0;
+      const wRank2 = weaponRarityRank[h2.weapon] ?? 0;
+      let basePower1 = Math.round((fRank1 * 98.7) + (wRank1 * 20));
+      let basePower2 = Math.round((fRank2 * 98.7) + (wRank2 * 20));
+      let boost1 = 0;
+      let boost2 = 0;
+      let rpsMsg = '';
+
+      // Round 1
+      let rpsResult1 = rpsWinner(rps1a, rps2a);
+      if (rpsResult1 === 1) {
+        boost1 += 987;
+        rpsMsg += 'Round 1: Player 1 wins (+987)!<br>';
+      } else if (rpsResult1 === 2) {
+        boost2 += 987;
+        rpsMsg += 'Round 1: Player 2 wins (+987)!<br>';
+      } else {
+        rpsMsg += 'Round 1: Tie. No boost.<br>';
+      }
+      // Round 2
+      let rpsResult2 = rpsWinner(rps1b, rps2b);
+      if (rpsResult2 === 1) {
+        boost1 += 987;
+        rpsMsg += 'Round 2: Player 1 wins (+987)!<br>';
+      } else if (rpsResult2 === 2) {
+        boost2 += 987;
+        rpsMsg += 'Round 2: Player 2 wins (+987)!<br>';
+      } else {
+        rpsMsg += 'Round 2: Tie. No boost.<br>';
+      }
+      let power1 = basePower1 + boost1;
+      let power2 = basePower2 + boost2;
+
+      // Display results
+      resultDiv.innerHTML = `
+        <div class='hooligan-info'>
+          <b>${h1.name}</b> | Faction: ${h1.faction} (Rank: ${fRank1}) | Weapon: ${h1.weapon} (Rank: ${wRank1})<br>
+          Faction Power: ${fRank1} × 98.7 = <b>${(fRank1 * 98.7).toFixed(1)}</b> | Weapon Power: ${wRank1} × 20 = <b>${(wRank1 * 20).toFixed(2)}</b><br>
+          Base PowerScore: <b>${basePower1}</b> | Boost: <b style='color:#4caf50;'>+${boost1}</b> | <b>Final: ${power1}</b>
+        </div>
+        <div class='hooligan-info'>
+          <b>${h2.name}</b> | Faction: ${h2.faction} (Rank: ${fRank2}) | Weapon: ${h2.weapon} (Rank: ${wRank2})<br>
+          Faction Power: ${fRank2} × 98.7 = <b>${(fRank2 * 98.7).toFixed(1)}</b> | Weapon Power: ${wRank2} × 20 = <b>${(wRank2 * 20).toFixed(2)}</b><br>
+          Base PowerScore: <b>${basePower2}</b> | Boost: <b style='color:#4caf50;'>+${boost2}</b> | <b>Final: ${power2}</b>
+        </div>
+        <div style='margin:10px 0;color:#ff0;'>${rpsMsg}</div>
+      `;
+
+      // Declare winner with a single, descriptive line
+      if (power1 > power2) {
+        pendingSound = 'win';
+        resultDiv.innerHTML += `<div style='margin-top:20px;font-size:1.3em;color:#4caf50;'><b>Victory!</b> Hooligan <span style='color:#ff0;'>#${h1.number}</span> (${h1.name}) of the <span style='color:#0ff;'>${h1.faction}</span> faction dazzled the crowd by swinging their <span style='color:#f88;'>${h1.weapon}</span> with wild style, outmaneuvering <span style='color:#fff;'>#${h2.number} ${h2.name}</span> (${h2.faction}) who tried to defend with a <span style='color:#f88;'>${h2.weapon}</span>. The clash was epic, but in the end, <span style='color:#ff0;'>${h1.weapon}</span> proved superior!<br><b>Final PowerScore:</b> <span style='color:#fff;'>${power1}</span> vs <span style='color:#f55;'>${power2}</span>`;
+      } else if (power2 > power1) {
+        pendingSound = 'lose';
+        resultDiv.innerHTML += `<div style='margin-top:20px;font-size:1.3em;color:#4caf50;'><b>Victory!</b> Hooligan <span style='color:#ff0;'>#${h2.number}</span> (${h2.name}) of the <span style='color:#0ff;'>${h2.faction}</span> faction unleashed a cunning attack with their <span style='color:#f88;'>${h2.weapon}</span>, catching <span style='color:#fff;'>#${h1.number} ${h1.name}</span> (${h1.faction}) off guard, whose <span style='color:#f88;'>${h1.weapon}</span> just couldn't keep up. The crowd went wild as <span style='color:#ff0;'>${h2.weapon}</span> sealed the win!<br><b>Final PowerScore:</b> <span style='color:#fff;'>${power2}</span> vs <span style='color:#f55;'>${power1}</span>`;
+      } else {
+        pendingSound = 'tie';
+        resultDiv.innerHTML += `<div style='margin-top:20px;font-size:1.3em;color:#ff0;'><b>It's a tie!</b> Both Hooligans fought valiantly, but neither prevailed.<br>The crowd roared as the dust settled, but no clear champion emerged from the chaos.</div>`;
+      }
+
+      playRandomBlueBobWebm();
+    }
+
+    // Play a random video in the upper left after file load or any value change
+    function playUpperFileLoadVideo() {
+      const video = document.getElementById('upperFileLoadVideo');
+      const src = blueBobWebms[Math.floor(Math.random() * blueBobWebms.length)];
+      video.src = src;
+      video.currentTime = 0;
+      video.loop = false;
+      video.muted = false;
+      video.style.display = 'block';
+      video.style.opacity = 1;
+      video.onended = null;
+      video.oncanplay = () => {
+        video.oncanplay = null;
+        video.play();
+      };
+      if (video.readyState >= 2) {
+        video.oncanplay = null;
+        video.play();
+      }
+    }
+
+    // Play a new random video in the upper left when any value is changed
+    function setupUpperVideoTriggers() {
+      // Buttons
+      document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          // Don't play if this is the GO button (battle)
+          if (e.target && e.target.textContent && e.target.textContent.trim().toUpperCase() === 'GO') return;
+          playUpperFileLoadVideo();
+        });
+      });
+      // Inputs
+      document.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('change', playUpperFileLoadVideo);
+      });
+      // Selects
+      document.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('change', playUpperFileLoadVideo);
+      });
+      // File input (data load)
+      document.getElementById('fileInput').addEventListener('change', playUpperFileLoadVideo);
+    }
+    window.addEventListener('DOMContentLoaded', function() {
+      setupUpperVideoTriggers();
+    });
+  </script>
+</body>
+</html>
